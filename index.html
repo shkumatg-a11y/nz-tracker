@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>НЗ Переезд — Трекер задач</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f0f4f8; color: #1a202c; min-height: 100vh; }
+
+  header { background: #2b6cb0; color: white; padding: 20px 24px; display: flex; align-items: center; justify-content: space-between; }
+  header h1 { font-size: 1.4rem; }
+  header span { font-size: 0.85rem; opacity: 0.8; }
+
+  .container { max-width: 900px; margin: 0 auto; padding: 24px 16px; }
+
+  .stats { display: flex; gap: 12px; margin-bottom: 24px; flex-wrap: wrap; }
+  .stat-card { background: white; border-radius: 10px; padding: 14px 20px; flex: 1; min-width: 120px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); text-align: center; }
+  .stat-card .num { font-size: 1.8rem; font-weight: 700; color: #2b6cb0; }
+  .stat-card .label { font-size: 0.75rem; color: #718096; margin-top: 2px; }
+
+  .add-form { background: white; border-radius: 12px; padding: 20px; margin-bottom: 24px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+  .add-form h2 { font-size: 1rem; margin-bottom: 14px; color: #2d3748; }
+  .form-row { display: flex; gap: 10px; flex-wrap: wrap; }
+  .form-row input, .form-row select { flex: 1; min-width: 140px; padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.9rem; background: #f7fafc; }
+  .form-row input:focus, .form-row select:focus { outline: none; border-color: #2b6cb0; background: white; }
+  .form-row button { padding: 10px 20px; background: #2b6cb0; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 0.9rem; font-weight: 600; }
+  .form-row button:hover { background: #2c5282; }
+
+  .filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+  .filter-btn { padding: 6px 14px; border: 1px solid #e2e8f0; border-radius: 20px; background: white; cursor: pointer; font-size: 0.8rem; color: #4a5568; }
+  .filter-btn.active { background: #2b6cb0; color: white; border-color: #2b6cb0; }
+
+  .tasks-list { display: flex; flex-direction: column; gap: 10px; }
+
+  .task-card { background: white; border-radius: 10px; padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); display: flex; align-items: flex-start; gap: 12px; transition: opacity 0.2s; }
+  .task-card.done { opacity: 0.55; }
+  .task-card.done .task-title { text-decoration: line-through; color: #a0aec0; }
+
+  .task-check { width: 22px; height: 22px; border: 2px solid #cbd5e0; border-radius: 50%; cursor: pointer; flex-shrink: 0; margin-top: 2px; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
+  .task-check.checked { background: #48bb78; border-color: #48bb78; }
+  .task-check.checked::after { content: "✓"; color: white; font-size: 13px; font-weight: 700; }
+
+  .task-body { flex: 1; }
+  .task-title { font-size: 0.95rem; font-weight: 600; color: #2d3748; }
+  .task-meta { display: flex; gap: 8px; margin-top: 6px; flex-wrap: wrap; align-items: center; }
+  .badge { padding: 2px 10px; border-radius: 20px; font-size: 0.72rem; font-weight: 600; }
+  .badge-visa { background: #bee3f8; color: #2b6cb0; }
+  .badge-documents { background: #fefcbf; color: #744210; }
+  .badge-finance { background: #c6f6d5; color: #276749; }
+  .badge-housing { background: #fed7e2; color: #97266d; }
+  .badge-family { background: #e9d8fd; color: #553c9a; }
+  .badge-university { background: #e6fffa; color: #234e52; }
+  .badge-health { background: #fff0f0; color: #9b2335; }
+  .badge-other { background: #e2e8f0; color: #4a5568; }
+  .badge-status-todo { background: #e2e8f0; color: #4a5568; }
+  .badge-status-doing { background: #feebc8; color: #7b341e; }
+  .badge-status-done { background: #c6f6d5; color: #276749; }
+
+  .due-date { font-size: 0.75rem; color: #718096; }
+  .due-date.overdue { color: #e53e3e; font-weight: 600; }
+
+  .task-actions { display: flex; gap: 6px; margin-left: auto; }
+  .btn-status { padding: 4px 10px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 0.75rem; cursor: pointer; background: white; color: #4a5568; }
+  .btn-status:hover { background: #edf2f7; }
+  .btn-del { padding: 4px 8px; border: none; border-radius: 6px; font-size: 0.75rem; cursor: pointer; background: #fff5f5; color: #e53e3e; }
+  .btn-del:hover { background: #fed7d7; }
+
+  .empty { text-align: center; padding: 40px; color: #a0aec0; font-size: 0.95rem; }
+
+  @media (max-width: 600px) {
+    .form-row { flex-direction: column; }
+    .task-actions { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🇳🇿 Переезд в Новую Зеландию</h1>
+  <span>Трекер задач</span>
+</header>
+
+<div class="container">
+
+  <div class="stats" id="stats"></div>
+
+  <div class="add-form">
+    <h2>➕ Добавить задачу</h2>
+    <div class="form-row">
+      <input type="text" id="inp-title" placeholder="Название задачи..." style="flex:2; min-width:200px;">
+      <select id="inp-cat">
+        <option value="visa">🛂 Виза</option>
+        <option value="documents">📄 Документы</option>
+        <option value="finance">💰 Финансы</option>
+        <option value="housing">🏠 Жильё</option>
+        <option value="family">👨‍👩‍👧 Семья</option>
+        <option value="university">🎓 Университет</option>
+        <option value="health">🏥 Здоровье</option>
+        <option value="other">📌 Другое</option>
+      </select>
+      <input type="date" id="inp-due">
+      <button onclick="addTask()">Добавить</button>
+    </div>
+  </div>
+
+  <div class="filters" id="filters"></div>
+
+  <div class="tasks-list" id="tasks-list"></div>
+</div>
+
+
+<!-- Supabase -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+// =============================================
+// ВСТАВЬ СВОИ ЗНАЧЕНИЯ ЗДЕСЬ:
+const SUPABASE_URL      = 'https://emqhhlhlerttdhrrwuok.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_lCoikwXh4HW84ImrhKlLIA_LjGkqBaa';
+// =============================================
+
+const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let currentTasks = [];
+let activeFilter = 'all';
+
+const CATEGORIES = {
+  visa: '🛂 Виза',
+  documents: '📄 Документы',
+  finance: '💰 Финансы',
+  housing: '🏠 Жильё',
+  family: '👨‍👩‍👧 Семья',
+  university: '🎓 Университет',
+  health: '🏥 Здоровье',
+  other: '📌 Другое'
+};
+const STATUSES = { todo: 'Нужно сделать', doing: 'В процессе', done: 'Готово' };
+
+async function loadTasks() {
+  const { data, error } = await _supabase
+    .from('nz_tasks')
+    .select('*')
+    .order('created_at', { ascending: false });
+  if (error) { alert('Ошибка подключения. Проверь ключи Supabase.'); console.error(error); return; }
+  currentTasks = data || [];
+  render();
+}
+
+function setupRealtime() {
+  _supabase.channel('nz_tasks_changes')
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'nz_tasks' }, (p) => {
+      currentTasks.unshift(p.new); render();
+    })
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'nz_tasks' }, (p) => {
+      const i = currentTasks.findIndex(t => t.id === p.new.id);
+      if (i >= 0) currentTasks[i] = p.new; render();
+    })
+    .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'nz_tasks' }, (p) => {
+      currentTasks = currentTasks.filter(t => t.id !== p.old.id); render();
+    })
+    .subscribe();
+}
+
+async function addTask() {
+  const title = document.getElementById('inp-title').value.trim();
+  if (!title) { document.getElementById('inp-title').focus(); return; }
+  const cat = document.getElementById('inp-cat').value;
+  const due = document.getElementById('inp-due').value;
+  const { error } = await _supabase.from('nz_tasks').insert({
+    title, category: cat, status: 'todo', due_date: due || null
+  });
+  if (error) { console.error(error); alert('Ошибка при добавлении задачи'); return; }
+  document.getElementById('inp-title').value = '';
+  document.getElementById('inp-due').value = '';
+}
+
+async function nextStatus(id) {
+  const task = currentTasks.find(t => t.id === id);
+  if (!task) return;
+  const order = ['todo', 'doing', 'done'];
+  const newStatus = order[(order.indexOf(task.status) + 1) % order.length];
+  await _supabase.from('nz_tasks').update({ status: newStatus }).eq('id', id);
+}
+
+async function deleteTask(id) {
+  await _supabase.from('nz_tasks').delete().eq('id', id);
+}
+
+function setFilter(f) { activeFilter = f; render(); }
+function formatDate(d) { return new Date(d + 'T00:00:00').toLocaleDateString('ru-RU', { day:'numeric', month:'long' }); }
+function escHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function render() {
+  const filtered = activeFilter === 'all' ? currentTasks : currentTasks.filter(t => t.category === activeFilter);
+  const total = currentTasks.length;
+  const done  = currentTasks.filter(t => t.status === 'done').length;
+  const doing = currentTasks.filter(t => t.status === 'doing').length;
+
+  document.getElementById('stats').innerHTML = `
+    <div class="stat-card"><div class="num">${total}</div><div class="label">Всего задач</div></div>
+    <div class="stat-card"><div class="num">${done}</div><div class="label">Выполнено</div></div>
+    <div class="stat-card"><div class="num">${doing}</div><div class="label">В процессе</div></div>
+    <div class="stat-card"><div class="num">${total - done}</div><div class="label">Осталось</div></div>
+  `;
+
+  const cats = ['all', ...Object.keys(CATEGORIES)];
+  document.getElementById('filters').innerHTML = cats.map(c => `
+    <button class="filter-btn ${activeFilter === c ? 'active' : ''}" onclick="setFilter('${c}')">
+      ${c === 'all' ? '📋 Все' : CATEGORIES[c]}
+    </button>
+  `).join('');
+
+  const list = document.getElementById('tasks-list');
+  if (filtered.length === 0) {
+    list.innerHTML = '<div class="empty">Нет задач. Добавь первую выше 👆</div>';
+    return;
+  }
+
+  const today = new Date().toISOString().slice(0,10);
+  list.innerHTML = filtered.map(t => {
+    const isDone  = t.status === 'done';
+    const overdue = t.due_date && t.due_date < today && !isDone;
+    const dueStr  = t.due_date ? `<span class="due-date ${overdue ? 'overdue' : ''}">📅 ${overdue ? '⚠️ ' : ''}${formatDate(t.due_date)}</span>` : '';
+    return `
+      <div class="task-card ${isDone ? 'done' : ''}">
+        <div class="task-check ${isDone ? 'checked' : ''}" onclick="nextStatus('${t.id}')"></div>
+        <div class="task-body">
+          <div class="task-title">${escHtml(t.title)}</div>
+          <div class="task-meta">
+            <span class="badge badge-${t.category}">${CATEGORIES[t.category]}</span>
+            <span class="badge badge-status-${t.status}">${STATUSES[t.status]}</span>
+            ${dueStr}
+          </div>
+        </div>
+        <div class="task-actions">
+          <button class="btn-status" onclick="nextStatus('${t.id}')">→ Статус</button>
+          <button class="btn-del" onclick="deleteTask('${t.id}')">✕</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+document.getElementById('inp-title').addEventListener('keydown', e => { if (e.key === 'Enter') addTask(); });
+loadTasks();
+setupRealtime();
+</script>
+
+</body>
+</html>
